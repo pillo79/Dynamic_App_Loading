@@ -159,13 +159,13 @@ target_sources(app
 add_custom_target(userlib DEPENDS sys_module)
 set(out_disassembly_cmd    "")
 set(out_disassembly_byprod "")
-bintools_objdump(
-  RESULT_CMD_LIST    out_disassembly_cmd
-  RESULT_BYPROD_LIST out_disassembly_byprod
-  "DISASSEMBLE_ALL"
-  FILE_INPUT         userlib/libsys_module.a
-  FILE_OUTPUT        libsys_module.diss
-  )
+#bintools_objdump(
+#  RESULT_CMD_LIST    out_disassembly_cmd
+#  RESULT_BYPROD_LIST out_disassembly_byprod
+#  "DISASSEMBLE_ALL"
+#  FILE_INPUT         userlib/libsys_module.a
+#  FILE_OUTPUT        libsys_module.diss
+#  )
 
 # Copy the sys_module lib and header files to lib folder for easy distribution
 add_custom_command(TARGET userlib
@@ -174,8 +174,7 @@ add_custom_command(TARGET userlib
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/modules/sys_module/*[!_kernel].h userlib
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/common.h userlib
     #COMMAND ${CMAKE_COMMAND} -E touch userlib/toolchain.h
-    COMMAND "sed" "-i" "'s/#include <toolchain.h>//g'" "userlib/*"
-    COMMAND "sed" "-i" "'s/#include <.*_kernel.h>//g'" "userlib/*" #TODO: Remove linux dependency
+    COMMAND "sed" "-i" "'s/#include <.*toolchain.h>//g'" "userlib/*"
     COMMAND ${out_disassembly_cmd}
     )
 

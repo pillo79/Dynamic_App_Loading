@@ -35,10 +35,10 @@
 
 #ifndef CONFIG_USERLIB
 
-#include <device.h>
-#include <devicetree.h>
-#include <drivers/gpio.h>
-#include <logging/log.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/logging/log.h>
 // TODO: Change Log module debug level from build system
 LOG_MODULE_REGISTER(led, 4);
 
@@ -76,24 +76,17 @@ LOG_MODULE_REGISTER(led, 4);
 #endif
 
 
-static struct device *dev;
+static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
 
 int8_t initLeds(void) {
     // Initialize GPIO and LED
     int ret;
-    dev = device_get_binding(LED0_DEV);
-    if (dev == NULL) {
-        return -1;
-    }
-    ret = gpio_pin_configure(dev, LED0_PIN, GPIO_OUTPUT_INACTIVE | LED0_FLAGS);
+    ret = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_INACTIVE | LED0_FLAGS);
     if (ret < 0) {
         return -1;
     }
-    dev = device_get_binding(LED1_DEV);
-    if (dev == NULL) {
-        return -1;
-    }
-    ret = gpio_pin_configure(dev, LED1_PIN, GPIO_OUTPUT_INACTIVE | LED1_FLAGS);
+    ret = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_INACTIVE | LED1_FLAGS);
     if (ret < 0) {
         return -1;
     }
@@ -103,18 +96,10 @@ int8_t initLeds(void) {
 int8_t z_impl_SetLed(uint8_t Led_Num, uint8_t Led_State) {
     switch(Led_Num) {
         case 0:
-            dev = device_get_binding(LED0_DEV);
-            if (dev == NULL) {
-                return -1;
-            }
-            gpio_pin_set(dev, LED0_PIN, (int)Led_State);
+            gpio_pin_set_dt(&led0, (int)Led_State);
             break;
         case 1:
-            dev = device_get_binding(LED1_DEV);
-            if (dev == NULL) {
-                return -1;
-            }
-            gpio_pin_set(dev, LED1_PIN, (int)Led_State);
+            gpio_pin_set_dt(&led1, (int)Led_State);
             break;
         default:
             return -1;
@@ -128,6 +113,11 @@ static int8_t z_vrfy_SetLed(uint8_t Led_Num, uint8_t Led_State){
     return z_impl_SetLed(Led_Num, Led_State);
     
 }
+#include <zephyr/kernel/thread.h>
 #include <syscalls/SetLed_mrsh.c>
+
+#else
+
+#include <syscalls/sysled.h>
 
 #endif /* CONFIG_USERLIB */

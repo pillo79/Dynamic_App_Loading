@@ -31,11 +31,10 @@
  * SOFTWARE.
 */
 
-#include <zephyr.h>
-#include <device.h>
-#include <devicetree.h>
-#include <drivers/gpio.h>
-#include <logging/log.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/logging/log.h>
 // TODO: Change Log module debug level from build system
 LOG_MODULE_REGISTER(main, 4);
 

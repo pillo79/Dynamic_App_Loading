@@ -31,13 +31,12 @@
  * SOFTWARE.
 */
 
-#include "zephyr.h"
-#include "kernel.h"
+#include <zephyr/kernel.h>
 #include "string.h" //TODO: Replace with a minimal libc implementation
 #include "stdlib.h" //TODO: Replace with a minimal libc implementation
 #include "app_loader/app_loader.h"
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 // TODO: Change Log module debug level from build system
 LOG_MODULE_REGISTER(app_loader, 4);
 

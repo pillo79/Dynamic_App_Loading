@@ -60,5 +60,4 @@
 */
 __syscall int8_t SetLed(uint8_t Led_Num, uint8_t Led_State);
 
-#include <sys_module/sysled_kernel.h>
 #endif /* _RATCH_LED_H_ */
