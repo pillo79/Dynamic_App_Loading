@@ -33,8 +33,8 @@ set(ZEPHYR_SDK_INSTALL_DIR $ENV{ZEPHYR_SDK_INSTALL_DIR})
 set(CROSS_TOOLCHAIN ${ZEPHYR_SDK_INSTALL_DIR}/arm-zephyr-eabi/bin/arm-zephyr-eabi-)
 #set(CROSS_TOOLCHAIN arm-none-eabi-)
 # These values should be the same in kernel CMakeLists.txt file
-set(MCU STM32F429xx)
-set(MCU_SPEC  cortex-m4)
+set(MCU STM32H747xx)
+set(MCU_SPEC  cortex-m7)
 #~ set(FLOAT_SPEC "-mfloat-abi=hard -mfpu=fpv4-sp-d16") #TODO: Add support for fpu in the kernel as well.
 set(APP_NAME blinky)
 set(APP_COMPILE_FLAGS)
