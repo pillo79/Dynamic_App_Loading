@@ -40,6 +40,7 @@ LOG_MODULE_REGISTER(main, 4);
 
 #include "utilities.h"
 #include "sys_module/sysled.h"
+#include "syscalls/sysled.h"
 #include "app_loader/app_loader.h"
 
 // include the app

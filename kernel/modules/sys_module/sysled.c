@@ -33,7 +33,7 @@
 
 #include "sys_module/sysled.h"
 
-#ifndef CONFIG_USERLIB
+#if !CONFIG_USERLIB
 
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>

@@ -74,16 +74,16 @@ int8_t LoadApp(const uint8_t* tinf_img) {
     if(memcmp(tinf->magic, "TINF", 4) == 0) {
 
         // Valid TINF Format app
-        LOG_DBG("Loading app: %s %hu.%hu", tinf->app_name, tinf->major_version, tinf->minor_version);
-        LOG_DBG("App text size: %hu 32 bit word", tinf->text_size);
-        LOG_DBG("App data size: %hu 32 bit word", tinf->data_size);
-        LOG_DBG("App bss size: %hu 32 bit word", tinf->bss_size);
-        LOG_DBG("App GOT entries: %ld", tinf->got_entries);
+        printk("Loading app: %s %hu.%hu\n", tinf->app_name, tinf->major_version, tinf->minor_version);
+        printk("App text size: %hu 32 bit word\n", tinf->text_size);
+        printk("App data size: %hu 32 bit word\n", tinf->data_size);
+        printk("App bss size: %hu 32 bit word\n", tinf->bss_size);
+        printk("App GOT entries: %ld\n", tinf->got_entries);
 
         // Allocate memory for data and bss section of the app on the heap
         uint32_t app_data_size = tinf->data_size+tinf->got_entries+tinf->bss_size;
 
-        LOG_DBG("Allocating app memory of %ld bytes", app_data_size*4);
+        printk("Allocating app memory of %ld bytes\n", app_data_size*4);
         // TODO: Add the size of the stack actually required by the app, currently hardcoded to DEFAULT_STACK_SIZE words, change in the task create API also
         // TODO: Cannot dynamically allocate thread stack due to limitation in zephyr
         // Zephyr does not have an aligned allocater
@@ -104,7 +104,7 @@ int8_t LoadApp(const uint8_t* tinf_img) {
         // This value is passed as the parameter to the app_main. The app will
         // copy the this value from r0 to r9 register
         uint32_t* app_got_base = app_data_base + tinf->data_size;
-        LOG_DBG("App data base: 0x%08X", app_data_base);
+        printk("App data base: 0x%08X\n", app_data_base);
 
         // Layout in RAM:
         // low memory (eg: 0x200014a0)                          high memory (eg: 0x200014cc)
@@ -123,14 +123,14 @@ int8_t LoadApp(const uint8_t* tinf_img) {
             if(tinf->data_size > 0) {
                 // Copy data section from flash to the RAM we allocated above
                 memcpy(app_data_base, data_base, (tinf->data_size*4));
-                LOG_DBG("Data at data section (flash): 0x%08X", *(uint32_t*)(tinf->bin+(tinf->text_size)));
-                LOG_DBG("Data at data section (RAM): 0x%08X", *(uint32_t*)(app_data_base));
+                printk("Data at data section (flash): 0x%08X\n", *(uint32_t*)(tinf->bin+(tinf->text_size)));
+                printk("Data at data section (RAM): 0x%08X\n", *(uint32_t*)(app_data_base));
 
                 // Replace the sys_struct address to the one on the mcu
                 // The start of the app_data_base will point to start of the data section
                 // This is where the sys_struct address was kept by the linker script
                 //*app_data_base = (uintptr_t)&sys;
-                //LOG_DBG("App sys_struct: 0x%08X", *app_data_base);
+                //printk("App sys_struct: 0x%08X\n", *app_data_base);
             }
 
             // If there is any global data of the app then copy to RAM
@@ -138,7 +138,7 @@ int8_t LoadApp(const uint8_t* tinf_img) {
                 // Copy the GOT from flash to RAM
                 // app_got_base is the base of the GOT in the RAM
                 // this is where GOT will be copied to
-                LOG_DBG("GOT in app stack: %p", app_got_base);
+                printk("GOT in app stack: %p\n", app_got_base);
 
                 // got_entries_base is the base of the GOT in the flash
                 // tinf->got_entries number of entries from this location
@@ -166,25 +166,26 @@ int8_t LoadApp(const uint8_t* tinf_img) {
             if(tinf->bss_size > 0) {
                 // Set BSS section to 0
                 memset(app_data_base+(tinf->data_size+tinf->got_entries), 0, tinf->bss_size*4);
-                LOG_DBG("Data at bss section (RAM): 0x%08X", *(uint32_t*)(app_data_base+(tinf->data_size)));
+                printk("Data at bss section (RAM): 0x%08X\n", *(uint32_t*)(app_data_base+(tinf->data_size)));
             }
             //uint32_t* app_stack_got = app_data_base + tinf->data_size;
             //uint32_t* got_entries_base = data_base + tinf->data_size;
             //for(uint8_t i = 0; i < tinf->got_entries; i++) {
-            //LOG_DBG("app_stack_got: 0x%08X: 0x%08X: 0x%08X and flash: 0x%08X", app_stack_got, *app_stack_got, *((uint32_t*)((uintptr_t)(*app_stack_got))), *got_entries_base++);
-            //LOG_DBG("app_stack_got: 0x%08X: 0x%08X and flash: 0x%08X", app_stack_got, *app_stack_got, *got_entries_base++);
+            //printk("app_stack_got: 0x%08X: 0x%08X: 0x%08X and flash: 0x%08X\n", app_stack_got, *app_stack_got, *((uint32_t*)((uintptr_t)(*app_stack_got))), *got_entries_base++);
+            //printk("app_stack_got: 0x%08X: 0x%08X and flash: 0x%08X\n", app_stack_got, *app_stack_got, *got_entries_base++);
             //app_stack_got++;
             //}
         }
         
         // OR'ed with 1 to set the thumb bit, TODO: Check if this is handled internally by zephyr
         int (*app_main)() = (void*)(((uintptr_t)(tinf->bin))|1);
-        LOG_DBG("App entry point: 0x%08X", app_main);
+        printk("App entry point: 0x%08X\n", app_main);
         // TODO: The following line gives segfault for some reason
-        //LOG_DBG("Data at app entry point: 0x%08X", *((uint32_t*)(((uintptr_t)app_main)&0xFFFFFFFE)));
+        printk("Data at app entry point: 0x%08X\n", *((uint32_t*)(((uintptr_t)app_main)&0xFFFFFFFE)));
 
-        //app_main(app_got_base);
-
+#if 1
+        app_main(app_got_base);
+#else
         k_thread_create(&app_thread,
                         //(k_thread_stack_t*) app_stack_base,
                         app_stack,
@@ -193,7 +194,7 @@ int8_t LoadApp(const uint8_t* tinf_img) {
                         //blinky,
                         app_got_base, NULL, NULL,
                         3, K_USER, K_NO_WAIT);
-
+#endif
         return 0;
     } else {
         // If check fails then it probably is not an app or it is corrupted

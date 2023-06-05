@@ -183,6 +183,7 @@ def ConvertFile(elf_file, app_name, major_version=1, minor_version=0):
 
         # Add the text section to the img
         #print(text_data())
+        print("first bytes", text.data()[:16])
         tin+=text.data()
 
         # Add the data section to the img
