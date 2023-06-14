@@ -33,6 +33,7 @@
 
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 // TODO: Change Log module debug level from build system
@@ -43,15 +44,17 @@ LOG_MODULE_REGISTER(main, 4);
 #include "syscalls/sysled.h"
 #include "app_loader/app_loader.h"
 
-// include the app
-#include "blinky_tinf.h"
-
 int main ( void ) {
     initLeds();
 
-    // Load the app defined in blinky_tinf.h
+    // Load the app directly from Flash
+    const uint8_t *app = (const uint8_t *) 0x08060000;
     if(LoadApp(app)<0){
     	while(1){
+    	    SetLed(LED0, LED_ON);
+	    k_usleep(100000);
+    	    SetLed(LED0, LED_OFF);
+	    k_usleep(100000);
     	}
     }
 
