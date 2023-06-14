@@ -125,6 +125,7 @@ string(APPEND OBJECT_GEN_FLAGS " \
 -mabi=aapcs \
 ${FLOAT_SPEC} \
 ${PIC_FLAGS} \
+-O1 -g
 ")
 
 #-------------------

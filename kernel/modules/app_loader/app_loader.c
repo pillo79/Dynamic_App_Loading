@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
- * @file    app_loader.c
- * @brief   Contains function for loading the app and setting up the freertos
- *          task
+ * @file	app_loader.c
+ * @brief	Contains function for loading the app and setting up the freertos
+ *			task
  ******************************************************************************
  * @attention
  *
@@ -51,155 +51,125 @@ LOG_MODULE_REGISTER(app_loader, 4);
 #define DUMMY_SYS_ADDR 0xA5A5A5A5
 uint32_t sys = 0xdeadbeef;
 //void blinky() {
-//    while (1) {
-//        SetLed(LED0, LED_ON);
-//        k_msleep(1000);
-//        SetLed(LED0, LED_OFF);
-//        k_msleep(1000);
-//    }
+//	  while (1) {
+//		  SetLed(LED0, LED_ON);
+//		  k_msleep(1000);
+//		  SetLed(LED0, LED_OFF);
+//		  k_msleep(1000);
+//	  }
 //}
 /////////////
 
 #define DEFAULT_STACK_SIZE 1024
+#define DEFAULT_HEAP_SIZE 4096
 K_THREAD_STACK_DEFINE(app_stack, DEFAULT_STACK_SIZE);
+K_THREAD_STACK_DEFINE(app_heap_buf, DEFAULT_HEAP_SIZE);
+
+K_MEM_PARTITION_DEFINE(app_heap_partition, app_heap_buf, sizeof(app_heap_buf), K_MEM_PARTITION_P_RW_U_RW);
+
 struct k_thread app_thread; //TODO: Dynamically allocate thread struct
+struct k_heap app_heap;
 
 int8_t LoadApp(const uint8_t* tinf_img) {
 
-    tinf_t* tinf = (tinf_t*)tinf_img;
-    // Check if it is actually an APP
-    // Check the magic, ie start of the header contains 'TINF'
-    uint32_t* data_base = tinf->bin+tinf->text_size;
+	tinf_t* tinf = (tinf_t*)tinf_img;
+	// Check if it is actually an APP
+	// Check the magic, ie start of the header contains 'TINF'
+	uint32_t* data_base = tinf->bin+tinf->text_size;
 
-    if(memcmp(tinf->magic, "TINF", 4) == 0) {
+	if (memcmp(tinf->magic, "TINF", 4) != 0)
+		return APP_INVALID;
 
-        // Valid TINF Format app
-        printk("Loading app: %s %hu.%hu\n", tinf->app_name, tinf->major_version, tinf->minor_version);
-        printk("App text size: %hu 32 bit word\n", tinf->text_size);
-        printk("App data size: %hu 32 bit word\n", tinf->data_size);
-        printk("App bss size: %hu 32 bit word\n", tinf->bss_size);
-        printk("App GOT entries: %ld\n", tinf->got_entries);
+	// Valid TINF Format app
+	printk("Loading app: %s %hu.%hu\n", tinf->app_name, tinf->major_version, tinf->minor_version);
+	printk("App text size: %hu 32 bit word\n", tinf->text_size);
+	printk("App data size: %hu 32 bit word\n", tinf->data_size);
+	printk("App bss size: %hu 32 bit word\n", tinf->bss_size);
+	printk("App GOT entries: %ld\n", tinf->got_entries);
 
-        // Allocate memory for data and bss section of the app on the heap
-        uint32_t app_data_size = tinf->data_size+tinf->got_entries+tinf->bss_size;
+	// Allocate memory for data, bss and got sections of the app
+	uint32_t app_data_size = tinf->data_size + tinf->got_entries + tinf->bss_size;
 
-        printk("Allocating app memory of %ld bytes\n", app_data_size*4);
-        // TODO: Add the size of the stack actually required by the app, currently hardcoded to DEFAULT_STACK_SIZE words, change in the task create API also
-        // TODO: Cannot dynamically allocate thread stack due to limitation in zephyr
-        // Zephyr does not have an aligned allocater
-        //uint32_t* app_data_base = k_malloc((app_data_size+DEFAULT_STACK_SIZE)*4);
-        uint32_t* app_data_base = app_stack;
-        uint32_t app_stack_size = DEFAULT_STACK_SIZE;
-        //if(app_data_base == NULL) {
-        //    return APP_OOM;
-        //}
+	k_heap_init(&app_heap, app_heap_buf, sizeof(app_heap_buf));
+	printk("Allocating app memory of %ld bytes\n", app_data_size*4);
+	uint32_t* app_data_base = k_heap_alloc(&app_heap, app_data_size*4, K_NO_WAIT);
+	printk("App data base: 0x%08X\n", app_data_base);
 
-        // app_stack_base is the address of the base of the stack used by
-        // the rtos task
-        uint32_t* app_stack_base = app_data_base+app_data_size;
+	if(tinf->data_size > 0) {
+		// Copy data section from flash to the RAM we allocated above
+		memcpy(app_data_base, data_base, (tinf->data_size*4));
+		printk("Data at data section (flash): 0x%08X\n", *(uint32_t*)(tinf->bin+(tinf->text_size)));
+		printk("Data at data section (RAM): 0x%08X\n", *(uint32_t*)(app_data_base));
+	}
 
-        // app_got_base is the value which will get loaded to r9
-        // This is address of the base of GOT which will actually be used
-        // by the app for global data accesses
-        // This value is passed as the parameter to the app_main. The app will
-        // copy the this value from r0 to r9 register
-        uint32_t* app_got_base = app_data_base + tinf->data_size;
-        printk("App data base: 0x%08X\n", app_data_base);
+	// app_got_base is the value which will get loaded to r9
+	// This is address of the base of GOT which will actually be used
+	// by the app for global data accesses
+	// This value is passed as the parameter to the app_main. The app will
+	// copy the this value from r0 to r9 register
+	uint32_t* app_got_base = app_data_base + tinf->data_size;
 
-        // Layout in RAM:
-        // low memory (eg: 0x200014a0)                          high memory (eg: 0x200014cc)
-        // |<--------------------- app_data_size ---------------------->|
-        // |<-- tinf->data_size -->|<-- got_entries -->|<-- bss_size -->|<-- stack_size -->|
-        // +-----------------------+-------------------+----------------+------------------+
-        // | .data                 | .got              | .bss           | APP STACK        |
-        // +-----------------------+-------------------+----------------+------------------+
-        // ^                       ^                                    ^                  Λ
-        // app_data_base           app_got_base                         app_stack_base     |
-        //                                                  stack starts pushing from here |
-        // TODO: There is no APP STACK overflow protection right now since we cannot detect
-        //       when the stack will start overwriting the bss section
+	// If there is any global data of the app then copy to RAM
+	if(tinf->got_entries > 0) {
+		// Copy the GOT from flash to RAM
+		// app_got_base is the base of the GOT in the RAM
+		// this is where GOT will be copied to
+		printk("GOT base: %p\n", app_got_base);
 
-        if(app_data_size != 0) {
-            if(tinf->data_size > 0) {
-                // Copy data section from flash to the RAM we allocated above
-                memcpy(app_data_base, data_base, (tinf->data_size*4));
-                printk("Data at data section (flash): 0x%08X\n", *(uint32_t*)(tinf->bin+(tinf->text_size)));
-                printk("Data at data section (RAM): 0x%08X\n", *(uint32_t*)(app_data_base));
+		// got_entries_base is the base of the GOT in the flash
+		// tinf->got_entries number of entries from this location
+		// needs to be copied into RAM
+		uint32_t* got_entries_base = data_base + tinf->data_size;
 
-                // Replace the sys_struct address to the one on the mcu
-                // The start of the app_data_base will point to start of the data section
-                // This is where the sys_struct address was kept by the linker script
-                //*app_data_base = (uintptr_t)&sys;
-                //printk("App sys_struct: 0x%08X\n", *app_data_base);
-            }
+		// While copying add the base address (app_data_base) in RAM to each element of the GOT
+		// TODO: Add more explaination about this
+		// Need to subtract the data_offset to get the location with respect to 0
+		const uint32_t data_offset = 0x10000000;
+		for(uint8_t i = 0; i < tinf->got_entries; i++) {
+			if(*(got_entries_base+i) >= data_offset) {
+				// If the value is greater than data_offset then it is in the RAM section.
+				// So add the app_data_base to it.
+				*(app_got_base+i) = ((*(got_entries_base+i))-data_offset)+(uint32_t)((uintptr_t)app_data_base);
+			} else {
+				// else it is a relocation in the flash
+				// so add the flash->bin ie the base of the app in the flash to it
+				*(app_got_base+i) = (*(got_entries_base+i))+(uint32_t)((uintptr_t)tinf->bin);
+			}
+			printk("%2i) %08x -> %08x\n", i, *(got_entries_base+i), *(app_got_base+i));
+		}
+	}
 
-            // If there is any global data of the app then copy to RAM
-            if(tinf->got_entries > 0) {
-                // Copy the GOT from flash to RAM
-                // app_got_base is the base of the GOT in the RAM
-                // this is where GOT will be copied to
-                printk("GOT in app stack: %p\n", app_got_base);
+	// If there is any bss in the app then set that much space to 0
+	if(tinf->bss_size > 0) {
+		// Set BSS section to 0
+		memset(app_data_base+(tinf->data_size+tinf->got_entries), 0, tinf->bss_size*4);
+		printk("Data at bss section (RAM): 0x%08X\n", *(app_data_base+(tinf->data_size+tinf->got_entries)));
+	}
 
-                // got_entries_base is the base of the GOT in the flash
-                // tinf->got_entries number of entries from this location
-                // needs to be copied into RAM
-                uint32_t* got_entries_base = data_base + tinf->data_size;
+	// OR'ed with 1 to set the thumb bit, TODO: Check if this is handled internally by zephyr
+	int (*app_main)() = (void*)(((uintptr_t)(tinf->bin))|1);
+	printk("App entry point: 0x%08X\n", app_main);
+	// TODO: The following line gives segfault for some reason
+	printk("Data at app entry point:");
+	for (int i=0; i<16; ++i)
+		printk(" %02x", ((uint8_t*)tinf->bin)[i]);
+	printk("\n");
 
-                // While copying add the base address (app_data_base) in RAM to each element of the GOT
-                // TODO: Add more explaination about this
-                // Need to subtract the data_offset to get the location with respect to 0
-                uint32_t data_offset = 0x10000000;
-                for(uint8_t i = 0; i < tinf->got_entries; i++) {
-                    if(*(got_entries_base+i) >= data_offset) {
-                        // If the value is greater than data_offset then it is in the RAM section.
-                        // So add the app_data_base to it.
-                        *(app_got_base+i) = ((*(got_entries_base+i))-data_offset)+(uint32_t)((uintptr_t)app_data_base);
-                    } else {
-                        // else it is a relocation in the flash
-                        // so add the flash->bin ie the base of the app in the flash to it
-                        *(app_got_base+i) = (*(got_entries_base+i))+(uint32_t)((uintptr_t)tinf->bin);
-                    }
-                }
-            }
+	// Create thread
+	k_thread_create(&app_thread,
+					app_stack,
+					DEFAULT_STACK_SIZE,
+					(k_thread_entry_t)app_main,
+					app_got_base, NULL, NULL,
+					3, K_USER, K_FOREVER);
 
-            // If there is any bss in the app then set that much space to 0
-            if(tinf->bss_size > 0) {
-                // Set BSS section to 0
-                memset(app_data_base+(tinf->data_size+tinf->got_entries), 0, tinf->bss_size*4);
-                printk("Data at bss section (RAM): 0x%08X\n", *(uint32_t*)(app_data_base+(tinf->data_size)));
-            }
-            //uint32_t* app_stack_got = app_data_base + tinf->data_size;
-            //uint32_t* got_entries_base = data_base + tinf->data_size;
-            //for(uint8_t i = 0; i < tinf->got_entries; i++) {
-            //printk("app_stack_got: 0x%08X: 0x%08X: 0x%08X and flash: 0x%08X\n", app_stack_got, *app_stack_got, *((uint32_t*)((uintptr_t)(*app_stack_got))), *got_entries_base++);
-            //printk("app_stack_got: 0x%08X: 0x%08X and flash: 0x%08X\n", app_stack_got, *app_stack_got, *got_entries_base++);
-            //app_stack_got++;
-            //}
-        }
-        
-        // OR'ed with 1 to set the thumb bit, TODO: Check if this is handled internally by zephyr
-        int (*app_main)() = (void*)(((uintptr_t)(tinf->bin))|1);
-        printk("App entry point: 0x%08X\n", app_main);
-        // TODO: The following line gives segfault for some reason
-        printk("Data at app entry point: 0x%08X\n", *((uint32_t*)(((uintptr_t)app_main)&0xFFFFFFFE)));
+	// Allow thread access to the app heap (includes GOT, data and BSS!)
+	k_thread_heap_assign(&app_thread, &app_heap);
+	k_mem_domain_add_partition(&k_mem_domain_default, &app_heap_partition);
 
-#if 1
-        app_main(app_got_base);
-#else
-        k_thread_create(&app_thread,
-                        //(k_thread_stack_t*) app_stack_base,
-                        app_stack,
-                        app_stack_size,
-                        (k_thread_entry_t)app_main,
-                        //blinky,
-                        app_got_base, NULL, NULL,
-                        3, K_USER, K_NO_WAIT);
-#endif
-        return 0;
-    } else {
-        // If check fails then it probably is not an app or it is corrupted
-        // Invalid app
-        return APP_INVALID;
-    }
+	k_thread_start(&app_thread);
+	printk("Gone!\n");
+
+	return 0;
 }
 
