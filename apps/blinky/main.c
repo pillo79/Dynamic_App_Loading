@@ -20,14 +20,15 @@ uint8_t dummy_function(){
 
 static volatile int tot = 0;
 
+int32_t k_usleep(uint32_t us);
+
 int main() {
 SetLed(0, 0);
 led_num-=1;
     while (1) {
 	led_status=dummy_function();
 	SetLed(led_num, led_status);
-	for (int i=0; i<5000000; ++i)
-		tot++;
+	k_usleep(1000*1000);
     }
     return 0;
 }
