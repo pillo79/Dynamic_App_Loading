@@ -1,3 +1,9 @@
+&zephyr_udc0 {
+	cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};
+
 / {
 	zephyr,user {
 		digital-pin-gpios = <&arduino_header 0 0>,
