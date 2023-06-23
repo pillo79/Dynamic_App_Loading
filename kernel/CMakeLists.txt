@@ -170,12 +170,8 @@ set(out_disassembly_byprod "")
 # Copy the sys_module lib and header files to lib folder for easy distribution
 add_custom_command(TARGET userlib
     COMMAND ${CMAKE_COMMAND} -E make_directory userlib
-    COMMAND ${CMAKE_COMMAND} -E copy modules/sys_module/libsys_module.a userlib
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/modules/sys_module/*[!_kernel].h userlib
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/common.h userlib
-    #COMMAND ${CMAKE_COMMAND} -E touch userlib/toolchain.h
-    COMMAND "sed" "-i" "'s/#include <.*toolchain.h>//g'" "userlib/*"
-    COMMAND ${out_disassembly_cmd}
+    COMMAND ${CMAKE_COMMAND} -E copy modules/sys_module/libsys_module.a userlib/libzephyr_api.a
+    COMMAND ${CMAKE_COMMAND} -E copy zephyr/include/generated/zephyr_api.h userlib
     )
 
 ######################################################################
