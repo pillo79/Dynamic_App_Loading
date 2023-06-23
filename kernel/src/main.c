@@ -47,6 +47,8 @@ LOG_MODULE_REGISTER(main, 4);
 int main ( void ) {
     initLeds();
 
+    printk("%p\n", device_get_binding("gpio@58022400"));
+
     // Load the app directly from Flash
     const uint8_t *app = (const uint8_t *) 0x08060000;
     if(LoadApp(app)<0){

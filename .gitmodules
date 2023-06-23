@@ -1,0 +1,4 @@
+[submodule "kernel/modules/arduino-zephyr-extension"]
+	path = kernel/modules/arduino-zephyr-extension
+	url = git@github.com:bcmi-labs/arduino-zephyr-extension.git
+	branch = dynamic-app-poc-giga
