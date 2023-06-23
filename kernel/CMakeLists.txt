@@ -31,6 +31,8 @@ set(VERSION_MAJOR   0   CACHE STRING "Project major version number")
 set(VERSION_MINOR   0   CACHE STRING "Project minor version number")
 set(VERSION_PATCH   1   CACHE STRING "Project patch version number")
 
+set(DTC_OVERLAY_FILE ${BOARD}.overlay)
+
 #-------------------
 # General Flags
 #-------------------
@@ -85,6 +87,7 @@ message(STATUS "[INFO] RKERNEL is: ${RKERNEL}")
 list(APPEND ZEPHYR_EXTRA_MODULES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/sys_module
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/app_loader
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/Arduino-Zephyr-API
     )
 
 #-------------------

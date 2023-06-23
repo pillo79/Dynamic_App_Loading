@@ -24,7 +24,7 @@
 
 set(MODULE_NAME sys_module)
 
-file(GLOB SOURCES ./*.c)
+file(GLOB SOURCES ./*.c ./*.cpp)
 
 zephyr_include_directories(
 		${CMAKE_CURRENT_LIST_DIR}/..
@@ -39,6 +39,8 @@ if(MODULE_COMPILE_DEFS)
 		${MODULE_COMPILE_DEFS}
 		)
 endif()
+
+zephyr_cc_option(-fpermissive)
 
 #if(MODULE_LINK_LIBS)
 #    target_link_libraries(${MODULE_NAME}
