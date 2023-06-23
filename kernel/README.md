@@ -1,12 +1,9 @@
-Steps:
-=====
+To build, run `compile_for_core.sh <path-to-Arduino-Zephyr-core>` . 
+This will produce a folder `core` with the relevant build files, and copy:
 
-* `compile_kernel.sh` 
-  * will produce `build/zephyr/zephyr.bin` which is the "bootloader"
-  * must be copied in Arduino core dir `bootloaders/arduino_giga_r1_m7`
-  * board must be updated with "Burn bootloader" afterwards
-
-* `compile_userlib.sh` will produce a directory `build/userlib` with 2 files:
-  * `zephyr_api.h` must be copied in Arduino core dir `./variants/arduino_giga_r1_m7`
+  * `zephyr.bin` in Arduino core dir `bootloaders/arduino_giga_r1_m7`
   * `libzephyr_api.a` must be copied in Arduino core dir `./variants/arduino_giga_r1_m7/libs`
-  * will be used in next rebuild
+
+`zephyr_api.h`, if changed, must be manually synced with Arduino core dir `./variants/arduino_giga_r1_m7`
+
+Board must be updated with "Burn bootloader" when a new kernel is compiled.
