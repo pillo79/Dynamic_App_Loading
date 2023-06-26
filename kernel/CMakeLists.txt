@@ -85,7 +85,7 @@ message(STATUS "[INFO] RKERNEL is: ${RKERNEL}")
 # Modules Setup
 #------------------
 list(APPEND ZEPHYR_EXTRA_MODULES
-    ${CMAKE_CURRENT_SOURCE_DIR}/modules/sys_module
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/zephyr_api
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/app_loader
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/arduino-zephyr-extension
     )
@@ -104,9 +104,6 @@ set(MODULE_COMPILE_DEFS
     ${COMPILE_DEFS}
     )
 set(PROJECT_BASE ${CMAKE_CURRENT_SOURCE_DIR})
-#list(APPEND SYSCALL_INCLUDE_DIRS
-#	${CMAKE_CURRENT_SOURCE_DIR}/modules/sys_module/zephyr
-#	)
 
 find_package(Zephyr HINTS $ENV{ZEPHYR_BASE})
 #include($ENV{ZEPHYR_BASE}/cmake/app/boilerplate.cmake NO_POLICY_SCOPE)
@@ -159,22 +156,13 @@ target_sources(app
 #          will be linked
 ######################################################################
 
-add_custom_target(userlib DEPENDS sys_module)
-set(out_disassembly_cmd    "")
-set(out_disassembly_byprod "")
-#bintools_objdump(
-#  RESULT_CMD_LIST    out_disassembly_cmd
-#  RESULT_BYPROD_LIST out_disassembly_byprod
-#  "DISASSEMBLE_ALL"
-#  FILE_INPUT         userlib/libsys_module.a
-#  FILE_OUTPUT        libsys_module.diss
-#  )
+add_custom_target(userlib DEPENDS zephyr_api)
 
 # Copy the sys_module lib and header files to lib folder for easy distribution
 add_custom_command(TARGET userlib
     COMMAND ${CMAKE_COMMAND} -E make_directory userlib
-    COMMAND ${CMAKE_COMMAND} -E copy modules/sys_module/libsys_module.a userlib/libzephyr_api.a
-    COMMAND ${CMAKE_COMMAND} -E copy zephyr/include/generated/zephyr_api.h userlib
+    COMMAND ${CMAKE_COMMAND} -E copy modules/zephyr_api/libzephyr_api.a userlib/
+    COMMAND ${CMAKE_COMMAND} -E copy zephyr/include/generated/zephyr_api.h userlib/
     )
 
 ######################################################################

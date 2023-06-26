@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
- * @file    main.c
- * @brief   Main file
- *          Load the app and also turn on a LED
+ * @file	main.c
+ * @brief	Main file
+ *			Load the app and also turn on a LED
  ******************************************************************************
  * @attention
  *
@@ -40,8 +40,6 @@
 LOG_MODULE_REGISTER(main, 4);
 
 #include "utilities.h"
-#include "sys_module/sysled.h"
-#include "syscalls/sysled.h"
 #include "app_loader/app_loader.h"
 
 #include <zephyr/device.h>
@@ -51,60 +49,73 @@ LOG_MODULE_REGISTER(main, 4);
 
 #include <zephyr/usb/usb_device.h>
 #include <zephyr/logging/log.h>
-//LOG_MODULE_REGISTER(cdc_acm_echo, LOG_LEVEL_INF);
 
-#define RING_BUF_SIZE   (1024)
+#define LED0_NODE DT_ALIAS(led0)
+#if DT_NODE_HAS_STATUS(LED0_NODE, okay)
+	#if DT_PHA_HAS_CELL(LED0_NODE, gpios, flags)
+		#define LED0_FLAGS	DT_GPIO_FLAGS(LED0_NODE, gpios)
+	#else
+		#define LED0_FLAGS	0
+	#endif
+
+#else
+	#error "Unsupported board: led0 is not aliased in device tree."
+#endif
+
+static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+
+#define RING_BUF_SIZE	(1024)
 
 uint8_t ring_buffer[RING_BUF_SIZE];
 struct ring_buf ringbuf;
 
 static void interrupt_handler(const struct device *dev, void *user_data)
 {
-  ARG_UNUSED(user_data);
+	ARG_UNUSED(user_data);
 
-  while (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
-    if (uart_irq_rx_ready(dev)) {
-      int recv_len, rb_len;
-      uint8_t buffer[64];
-      size_t len = MIN(ring_buf_space_get(&ringbuf),
-                       sizeof(buffer));
+	while (uart_irq_update(dev) && uart_irq_is_pending(dev)) {
+		if (uart_irq_rx_ready(dev)) {
+			int recv_len, rb_len;
+			uint8_t buffer[64];
+			size_t len = MIN(ring_buf_space_get(&ringbuf),
+					sizeof(buffer));
 
-      recv_len = uart_fifo_read(dev, buffer, len);
-      if (recv_len < 0) {
-        LOG_ERR("Failed to read UART FIFO");
-        recv_len = 0;
-      };
+			recv_len = uart_fifo_read(dev, buffer, len);
+			if (recv_len < 0) {
+				LOG_ERR("Failed to read UART FIFO");
+				recv_len = 0;
+			};
 
-      rb_len = ring_buf_put(&ringbuf, buffer, recv_len);
-      if (rb_len < recv_len) {
-        LOG_ERR("Drop %u bytes", recv_len - rb_len);
-      }
+			rb_len = ring_buf_put(&ringbuf, buffer, recv_len);
+			if (rb_len < recv_len) {
+				LOG_ERR("Drop %u bytes", recv_len - rb_len);
+			}
 
-      LOG_DBG("tty fifo -> ringbuf %d bytes", rb_len);
-      if (rb_len) {
-        uart_irq_tx_enable(dev);
-      }
-    }
+			LOG_DBG("tty fifo -> ringbuf %d bytes", rb_len);
+			if (rb_len) {
+				uart_irq_tx_enable(dev);
+			}
+		}
 
-    if (uart_irq_tx_ready(dev)) {
-      uint8_t buffer[64];
-      int rb_len, send_len;
+		if (uart_irq_tx_ready(dev)) {
+			uint8_t buffer[64];
+			int rb_len, send_len;
 
-      rb_len = ring_buf_get(&ringbuf, buffer, sizeof(buffer));
-      if (!rb_len) {
-        LOG_DBG("Ring buffer empty, disable TX IRQ");
-        uart_irq_tx_disable(dev);
-        continue;
-      }
+			rb_len = ring_buf_get(&ringbuf, buffer, sizeof(buffer));
+			if (!rb_len) {
+				LOG_DBG("Ring buffer empty, disable TX IRQ");
+				uart_irq_tx_disable(dev);
+				continue;
+			}
 
-      send_len = uart_fifo_fill(dev, buffer, rb_len);
-      if (send_len < rb_len) {
-        LOG_ERR("Drop %d bytes", rb_len - send_len);
-      }
+			send_len = uart_fifo_fill(dev, buffer, rb_len);
+			if (send_len < rb_len) {
+				LOG_ERR("Drop %d bytes", rb_len - send_len);
+			}
 
-      LOG_DBG("ringbuf -> tty fifo %d bytes", send_len);
-    }
-  }
+			LOG_DBG("ringbuf -> tty fifo %d bytes", send_len);
+		}
+	}
 }
 
 
@@ -112,23 +123,23 @@ static void interrupt_handler(const struct device *dev, void *user_data)
 
 void HAL_RTCEx_BKUPWrite(RTC_HandleTypeDef * hrtc, uint32_t BackupRegister, uint32_t Data)
 {
-  uint32_t tmp;
+	uint32_t tmp;
 
-  /* Check the parameters */
-  assert_param(IS_RTC_BKP(BackupRegister));
+	/* Check the parameters */
+	assert_param(IS_RTC_BKP(BackupRegister));
 
-  /* Point on address of first backup register */
+	/* Point on address of first backup register */
 #if defined(TAMP_BKP0R)
-  tmp = (uint32_t) & (((TAMP_TypeDef *)((uint32_t)hrtc->Instance + TAMP_OFFSET))->BKP0R);
+	tmp = (uint32_t) & (((TAMP_TypeDef *)((uint32_t)hrtc->Instance + TAMP_OFFSET))->BKP0R);
 #endif /* TAMP_BKP0R */
 #if defined(RTC_BKP0R)
-  tmp = (uint32_t) & (hrtc->Instance->BKP0R);
+	tmp = (uint32_t) & (hrtc->Instance->BKP0R);
 #endif /* RTC_BKP0R */
 
-  tmp += (BackupRegister * 4U);
+	tmp += (BackupRegister * 4U);
 
-  /* Write the specified register */
-  *(__IO uint32_t *)tmp = (uint32_t)Data;
+	/* Write the specified register */
+	*(__IO uint32_t *)tmp = (uint32_t)Data;
 }
 
 void on1200bpstouch(const struct device *dev, int rate) {
@@ -172,19 +183,22 @@ int main(void)
 	/* Enable rx interrupts */
 	uart_irq_rx_enable(dev);
 
-	initLeds();
+	ret = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_INACTIVE | LED0_FLAGS);
+	if (ret < 0) {
+		return -1;
+	}
 
 	// Load the app directly from Flash
 	const uint8_t *app = (const uint8_t *) 0x08060000;
-	if(LoadApp(app)<0){
-		while(1){
-			SetLed(LED0, LED_ON);
+	if (LoadApp(app)<0 ){
+		while (1) {
+			gpio_pin_set_dt(&led0, 1);
 			k_usleep(100000);
-			SetLed(LED0, LED_OFF);
+			gpio_pin_set_dt(&led0, 0);
 			k_usleep(100000);
 		}
 	}
 
-	SetLed(LED0, LED_ON);
+	gpio_pin_set_dt(&led0, 1);
 	return 0;
 }
